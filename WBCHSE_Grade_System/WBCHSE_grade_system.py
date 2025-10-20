@@ -6,6 +6,7 @@ import platform
 import subprocess
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import Alignment
 
 
 def open_file(filename):
@@ -152,11 +153,13 @@ def export_all_students_to_single_sheet(students_data, filename="All_Results.xls
     # Header row
     headers = [
         "Name", "Reg No", "Roll No", "School", "Stream",
-        "Subject", "Marks", "Grade", "Best 5 Total", "Percentage", "Overall Grade","Status"
+        "Subject", "Marks", "Grade", "Best 5 Total", "Percentage", "Overall Grade", "Status"
     ]
     ws.append(headers)
     for cell in ws[1]:
         cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+
     red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
     green_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
 
@@ -164,7 +167,6 @@ def export_all_students_to_single_sheet(students_data, filename="All_Results.xls
     fail_count = 0
     total_students = len(students_data)
 
-    # Add each student's data
     for marksheet in students_data:
         student = marksheet.student
         failed_subjects = sum(1 for mark in marksheet.marks.values() if marksheet.get_grade(mark) == 'F')
@@ -174,17 +176,15 @@ def export_all_students_to_single_sheet(students_data, filename="All_Results.xls
         else:
             pass_count += 1
 
+        start_row = ws.max_row + 1
+        subject_count = len(marksheet.marks)
+
+        # Add subject rows
         for sub, mark in marksheet.marks.items():
             grade = marksheet.get_grade(mark)
             row = [
-                student.name,
-                student.reg_no,
-                student.roll_no,
-                student.school,
-                student.stream,
-                sub,
-                mark,
-                grade,
+                student.name, student.reg_no, student.roll_no, student.school, student.stream,
+                sub, mark, grade,
                 marksheet.best5_total,
                 f"{marksheet.percent:.2f}%",
                 marksheet.grade,
@@ -192,40 +192,55 @@ def export_all_students_to_single_sheet(students_data, filename="All_Results.xls
             ]
             ws.append(row)
 
-            if status == "Fail":
-                for cell in ws[ws.max_row]:
-                    cell.fill = red_fill
-            else:
-                for cell in ws[ws.max_row]:
-                    cell.fill = green_fill
+        # Merge cells for student info columns
+        for col in range(1, 6):  
+            ws.merge_cells(start_row=start_row, end_row=start_row + subject_count - 1, start_column=col, end_column=col)
+            cell = ws.cell(row=start_row, column=col)
+            cell.alignment = Alignment(vertical="center", horizontal="center")
+
+        for col in range(9, 13):  
+            ws.merge_cells(start_row=start_row, end_row=start_row + subject_count - 1, start_column=col, end_column=col)
+            cell = ws.cell(row=start_row, column=col)
+            cell.alignment = Alignment(vertical="center", horizontal="center")
 
 
-    wb.save(filename)
-    ws.append([])  # Blank row
+        # Apply color fill to all subject rows
+        fill = red_fill if status == "Fail" else green_fill
+        for r in range(start_row, start_row + subject_count):
+            for cell in ws[r]:
+                cell.fill = fill
+
+    # Summary
+    ws.append([])
     ws.append(["Summary", "", "", "", "", "", "", "", "", "", "", ""])
     ws.append(["Total Students", total_students])
     ws.append(["Total Passed", pass_count])
     ws.append(["Total Failed", fail_count])
 
-    # Calculate percentages
     pass_percent = (pass_count / total_students) * 100 if total_students else 0
     fail_percent = (fail_count / total_students) * 100 if total_students else 0
 
     ws.append(["Pass Percentage", f"{pass_percent:.2f}%"])
     ws.append(["Fail Percentage", f"{fail_percent:.2f}%"])
 
-    # Save again to include summary
     wb.save(filename)
     print(f"Excel file saved as '{filename}'")
 
 
 def main():
     students_data = []
-    num_students = int(input("How many students do you want to enter? "))
+    student_count = 0
 
-    for i in range(num_students):
-        print(f"\n--- Enter details for Student {i+1} ---")
-        name = input("Enter Student Name: ")
+    while True:
+        print(f"\n--- Enter details for Student {student_count + 1} ---")
+        name = input("Enter Student Name (or type 'stop' to finish): ")
+        if name.strip().lower() == "stop":
+            confirm = input("Are you sure you want to stop entering students? (yes/no): ").strip().lower()
+            if confirm == "yes":
+                break
+            else:
+                continue
+
         reg_no = input("Enter Registration Number: ")
         roll_no = input("Enter Roll Number: ")
         school = input("Enter School Name: ")
@@ -242,9 +257,13 @@ def main():
         marksheet.generate_pdf()
         students_data.append(marksheet)
 
-    export_all_students_to_single_sheet(students_data)
-    print("\nAll marksheets generated and Excel file saved successfully!")
+        # Update Excel after each student
+        export_all_students_to_single_sheet(students_data)
 
-    
+        student_count += 1
+
+    print("\nAll marksheets generated and Excel file updated after each entry!")
+
+
 if __name__ == "__main__" :
     main() 
