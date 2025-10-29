@@ -40,9 +40,11 @@ def toggle_repeat():
 def update_alarm_display():
     print("Updating alarm display. Current alarm:", alarm)
     if alarm:
-        alarm_list_label.config(text=f"{alarm['time']} → {alarm['label']}")
+        alarm_time_label.config(text=f"⏰ Time: {alarm['time']}")
+        alarm_purpose_label.config(text=f"📝 Purpose: {alarm['label']}")
     else:
-        alarm_list_label.config(text="No active alarm")
+        alarm_time_label.config(text="No active alarm")
+        alarm_purpose_label.config(text="")
 
 alarm_triggered = False
 def snooze_alarm():
@@ -52,17 +54,19 @@ def snooze_alarm():
     now = datetime.now()
     snoozed = now + timedelta(minutes=5)
     alarm["time"] = snoozed.strftime('%H:%M:%S')
-    alarm_label.config(text=f"Snoozed to {alarm['time']}")
-    update_alarm_display()
+    alarm_time_label.config(text=f"Snoozed to: {alarm['time']}")
+    # Purpose stays the same
+
 
 alarm_triggered = False
 def stop_repeat():
     global repeat_enabled, alarm
     alarm = None
     repeat_enabled = False
-    alarm_label.config(text="Alarm stopped")
+    alarm_time_label.config(text="Alarm stopped")
+    alarm_purpose_label.config(text="")
     repeat_btn.config(text="Repeat: OFF")
-    update_alarm_display()
+
 
 def start_countdown():
     try:
@@ -87,9 +91,10 @@ def update_clock():
     clock_label.config(text=strftime('%H:%M:%S %p\n%d-%m-%Y'))
 
     if alarm and alarm["time"] == current_time:
-        alarm_label.config(text=f"⏰ {alarm['label']} is ringing!")
+        alarm_time_label.config(text=f"⏰ Alarm is ringing at {alarm['time']}")
+        alarm_purpose_label.config(text=f"📝 Purpose: {alarm['label']}")
         threading.Thread(target=play_alarm, args=("alarm.wav",), daemon=True).start()
-        
+
     clock_label.after(1000, update_clock)
 
 
@@ -130,15 +135,14 @@ def set_alarm():
     global alarm
     time_str = alarm_time_entry.get().strip()
     label_str = alarm_label_entry.get().strip()
-    print("Time entered:", time_str)
-    print("Label entered:", label_str)
     if time_str and label_str:
         alarm = {"time": time_str, "label": label_str}
-        print("Alarm set:", alarm)
-        alarm_label.config(text=f"Alarm set for {time_str} → {label_str}")
-        update_alarm_display()
+        alarm_time_label.config(text=f"Alarm set for {time_str}")
+        alarm_purpose_label.config(text=f"Purpose: {label_str}")
     else:
-        print("Missing time or label")
+        alarm_time_label.config(text="Missing time")
+        alarm_purpose_label.config(text="Missing purpose")
+
 
 
 # GUI setup
@@ -199,19 +203,32 @@ add_separator()
 
 # 🔔 Alarm Section
 tk.Label(scrollable_frame, text="🔔 Alarm", font=('calibri', 20, 'bold'), bg='white', fg='black').pack()
-tk.Label(scrollable_frame, text="Alarm Time (HH:MM:SS)", font=('calibri', 12), bg='white').pack()
+
+# Label above the time entry
+tk.Label(scrollable_frame, text="TIME (HH:MM:SS)", font=('calibri', 12, 'bold'),
+         bg='white', fg='purple').pack()
+
 alarm_time_entry = tk.Entry(scrollable_frame, font=('calibri', 16), justify='center')
 alarm_time_entry.pack(pady=4)
 
-tk.Label(scrollable_frame, text="Alarm Label (Purpose)", font=('calibri', 12), bg='white').pack()
+# Label above the purpose entry
+tk.Label(scrollable_frame, text="Purpose", font=('calibri', 12, 'bold'),
+         bg='white', fg='blue').pack()
 alarm_label_entry = tk.Entry(scrollable_frame, font=('calibri', 16), justify='center')
 alarm_label_entry.pack(pady=4)
 
+# Button to set alarm
 tk.Button(scrollable_frame, text="Set Alarm", font=('calibri', 12), command=set_alarm).pack(pady=4)
-alarm_label = tk.Label(scrollable_frame, font=('calibri', 16), fg='purple', bg='white')
-alarm_label.pack(pady=4)
-alarm_list_label = tk.Label(scrollable_frame, font=('calibri', 12), fg='black', bg='white', justify='left')
-alarm_list_label.pack(pady=4)
+
+# Label for showing only the alarm time
+alarm_time_label = tk.Label(scrollable_frame, font=('calibri', 16), fg='purple', bg='white')
+alarm_time_label.pack(pady=4)
+
+# Label for showing only the alarm purpose
+alarm_purpose_label = tk.Label(scrollable_frame, font=('calibri', 14), fg='blue', bg='white')
+alarm_purpose_label.pack(pady=4)
+add_separator()
+
 
 # 🔁 Alarm Actions (grouped)
 action_frame = tk.Frame(scrollable_frame, bg='white')
